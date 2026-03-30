@@ -1,0 +1,1178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Learning Intake Analyzer · Nikki Rosenvald</title>
+<style>
+  /* =============================================
+     DESIGN TOKENS
+     ============================================= */
+  :root {
+    --bg:#08090f;
+    --grid:rgba(0,200,200,0.04);
+    --surface:#0e1120;
+    --card:#111827;
+    --card2:#131929;
+    --border:#1e2d45;
+    --border2:#243350;
+    --accent:#00c8c8;
+    --accent2:#0090a8;
+    --accent-dim:rgba(0,200,200,0.08);
+    --accent-border:rgba(0,200,200,0.22);
+    --highlight:#e8a020;
+    --text:#e8eef5;
+    --muted:#6b7a99;
+    --muted2:#4a5568;
+    --danger:#e84040;
+    --warn:#d29922;
+    --success:#2ecc71;
+    --font:'Segoe UI',system-ui,-apple-system,sans-serif;
+    --radius:10px;
+    --radius-sm:5px;
+    --mono:'Consolas','Courier New',monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+
+  body {
+    font-family:var(--font);
+    background:var(--bg);
+    color:var(--text);
+    min-height:100vh;
+    padding:0 0 80px;
+    line-height:1.6;
+    /* Subtle grid overlay */
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size:40px 40px;
+  }
+
+  /* Top bar */
+  .topbar {
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:14px 32px;
+    border-bottom:1px solid var(--border);
+    background:rgba(8,9,15,0.92);
+    backdrop-filter:blur(8px);
+    position:sticky;
+    top:0;
+    z-index:100;
+  }
+  .topbar-left {
+    display:flex;
+    align-items:center;
+    gap:14px;
+  }
+  .topbar-logo {
+    width:30px;height:30px;
+    border:1px solid var(--accent-border);
+    border-radius:4px;
+    display:flex;align-items:center;justify-content:center;
+    background:var(--accent-dim);
+  }
+  .topbar-logo svg { width:16px;height:16px; }
+  .topbar-title {
+    font-size:12px;
+    font-weight:700;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    color:var(--text);
+  }
+  .topbar-title span { color:var(--accent); }
+  .topbar-credit {
+    font-size:11px;
+    color:var(--muted);
+    letter-spacing:.06em;
+    text-transform:uppercase;
+  }
+  .topbar-credit strong { color:var(--accent); font-weight:600; }
+
+  /* Corner decorations */
+  .corner-tl, .corner-br {
+    position:fixed;
+    width:24px;height:24px;
+    pointer-events:none;
+    z-index:5;
+    opacity:.5;
+  }
+  .corner-tl { top:58px;left:0; border-top:2px solid var(--accent);border-left:2px solid var(--accent); }
+  .corner-br { bottom:0;right:0; border-bottom:2px solid var(--accent);border-right:2px solid var(--accent); }
+
+  /* Page wrap */
+  .page {
+    max-width:820px;
+    margin:0 auto;
+    padding:40px 20px 0;
+  }
+
+  /* Header */
+  .header { margin-bottom:40px; }
+  .header-eyebrow {
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-bottom:14px;
+  }
+  .badge {
+    display:inline-flex;align-items:center;gap:6px;
+    background:var(--accent-dim);
+    color:var(--accent);
+    font-size:10px;
+    font-weight:700;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    padding:4px 12px;
+    border-radius:20px;
+    border:1px solid var(--accent-border);
+  }
+  .badge-dot { width:6px;height:6px;border-radius:50%;background:var(--accent);animation:pulse 2s infinite; }
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+  .eyebrow-line {
+    flex:1;
+    height:1px;
+    background:linear-gradient(90deg,var(--accent-border),transparent);
+  }
+  .eyebrow-label {
+    font-size:10px;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+    color:var(--muted);
+    font-family:var(--mono);
+  }
+  .header h1 {
+    font-size:clamp(24px,4vw,38px);
+    font-weight:800;
+    letter-spacing:-.02em;
+    line-height:1.15;
+    margin-bottom:10px;
+  }
+  .header h1 em { color:var(--accent);font-style:normal; }
+  .header h1 .hi { color:var(--highlight);font-style:normal; }
+  .header-sub {
+    font-size:14px;
+    color:var(--muted);
+    max-width:520px;
+    line-height:1.7;
+  }
+  .header-sub strong { color:var(--text); }
+
+  /* Progress */
+  .progress-wrap { margin-bottom:28px; }
+  .progress-meta {
+    display:flex;justify-content:space-between;
+    font-size:11px;color:var(--muted);margin-bottom:8px;
+    font-family:var(--mono);letter-spacing:.04em;
+  }
+  .progress-meta span:last-child{color:var(--accent);font-weight:700;}
+  .progress-bar{height:2px;background:var(--border2);border-radius:2px;overflow:hidden;}
+  .progress-fill{height:100%;background:linear-gradient(90deg,var(--accent2),var(--accent));transition:width .4s ease;}
+
+  /* Card */
+  .card {
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:28px 32px;
+    margin-bottom:20px;
+    display:none;
+    position:relative;
+    overflow:hidden;
+  }
+  .card::before {
+    content:'';
+    position:absolute;top:0;left:0;right:0;height:2px;
+    background:linear-gradient(90deg,transparent,var(--accent2),var(--accent),transparent);
+    opacity:.6;
+  }
+  .card.active{display:block;animation:fadeUp .3s ease;}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+  .q-label {
+    font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--accent);margin-bottom:8px;font-family:var(--mono);
+    display:flex;align-items:center;gap:8px;
+  }
+  .q-label::after{content:'';flex:1;height:1px;background:var(--border2);}
+  .q-title{font-size:18px;font-weight:700;margin-bottom:6px;line-height:1.3;}
+  .q-sub{font-size:13px;color:var(--muted);margin-bottom:24px;}
+
+  /* Text input */
+  .text-input {
+    width:100%;background:var(--surface);border:1px solid var(--border2);
+    border-radius:var(--radius-sm);color:var(--text);font-family:var(--font);
+    font-size:14px;padding:12px 14px;transition:border-color .2s;resize:vertical;
+  }
+  .text-input:focus{outline:none;border-color:var(--accent);}
+  .text-input::placeholder{color:var(--muted2);}
+
+  /* Options */
+  .options-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;margin-bottom:8px;}
+  .options-grid.single-col{grid-template-columns:1fr;}
+
+  .option-btn {
+    background:var(--surface);border:1px solid var(--border);
+    border-radius:var(--radius-sm);color:var(--muted);font-family:var(--font);
+    font-size:13px;padding:10px 14px;text-align:left;cursor:pointer;
+    transition:all .15s;display:flex;align-items:center;gap:10px;line-height:1.4;
+  }
+  .option-btn:hover{border-color:var(--accent2);background:var(--accent-dim);color:var(--text);}
+  .option-btn.selected{border-color:var(--accent);background:var(--accent-dim);color:var(--accent);}
+  .check,.square-check {
+    width:16px;height:16px;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;
+    font-size:9px;transition:all .15s;border:1px solid var(--border2);
+  }
+  .check{border-radius:50%;}
+  .square-check{border-radius:3px;}
+  .option-btn.selected .check,.option-btn.selected .square-check{
+    background:var(--accent);border-color:var(--accent);color:var(--bg);
+  }
+
+  /* Sub sections */
+  .sub-section{margin-top:20px;}
+  .sub-label{
+    font-size:10px;font-weight:700;color:var(--muted);margin-bottom:10px;
+    text-transform:uppercase;letter-spacing:.1em;font-family:var(--mono);
+  }
+
+  /* Toggle */
+  .toggle-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
+  .toggle-label{font-size:13px;color:var(--text);flex:1 1 160px;}
+  .toggle-btns{display:flex;gap:6px;}
+  .toggle-btn{
+    background:var(--surface);border:1px solid var(--border);
+    border-radius:var(--radius-sm);color:var(--muted);font-size:12px;
+    padding:6px 14px;cursor:pointer;transition:all .15s;font-family:var(--font);
+  }
+  .toggle-btn:hover{border-color:var(--accent2);color:var(--text);}
+  .toggle-btn.selected{border-color:var(--accent);background:var(--accent-dim);color:var(--accent);}
+
+  .sub-input{
+    width:100%;background:var(--surface);border:1px solid var(--border);
+    border-radius:var(--radius-sm);color:var(--text);font-family:var(--font);
+    font-size:13px;padding:10px 12px;margin-top:8px;transition:border-color .2s;
+  }
+  .sub-input:focus{outline:none;border-color:var(--accent);}
+  .sub-input::placeholder{color:var(--muted2);}
+  .hidden{display:none!important;}
+
+  /* Nav */
+  .nav-row{max-width:820px;margin:0 auto 20px;padding:0 20px;display:flex;justify-content:space-between;align-items:center;gap:12px;}
+  .btn{font-family:var(--font);font-size:13px;font-weight:700;padding:11px 24px;border-radius:var(--radius-sm);border:none;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:8px;letter-spacing:.04em;}
+  .btn-ghost{background:transparent;border:1px solid var(--border2);color:var(--muted);}
+  .btn-ghost:hover{border-color:var(--accent2);color:var(--text);}
+  .btn-primary{
+    background:transparent;
+    border:1px solid var(--accent);
+    color:var(--accent);
+    position:relative;overflow:hidden;
+  }
+  .btn-primary::before{
+    content:'';position:absolute;inset:0;
+    background:linear-gradient(135deg,var(--accent2),var(--accent));
+    opacity:0;transition:opacity .2s;
+  }
+  .btn-primary:hover::before{opacity:.15;}
+  .btn-primary span{position:relative;z-index:1;}
+  .btn-danger{background:transparent;border:1px solid var(--danger);color:var(--danger);}
+  .btn-danger:hover{background:rgba(232,64,64,.08);}
+
+  /* Reports */
+  #reports{display:none;}
+
+  .report-action-bar{
+    display:flex;justify-content:space-between;align-items:center;
+    flex-wrap:wrap;gap:10px;margin-bottom:20px;
+  }
+  .report-tabs{
+    display:flex;gap:2px;background:var(--surface);
+    border:1px solid var(--border);border-radius:var(--radius-sm);padding:3px;flex:1;
+  }
+  .tab-btn{
+    flex:1;font-family:var(--font);font-size:12px;font-weight:700;
+    padding:8px 16px;border:none;border-radius:3px;cursor:pointer;
+    transition:all .2s;background:transparent;color:var(--muted);
+    letter-spacing:.04em;text-transform:uppercase;
+  }
+  .tab-btn.active{background:var(--accent);color:var(--bg);}
+
+  .print-btns{display:flex;gap:8px;}
+  .btn-print{
+    font-family:var(--font);font-size:11px;font-weight:700;padding:8px 14px;
+    border-radius:var(--radius-sm);border:1px solid var(--border2);
+    background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;
+    display:flex;align-items:center;gap:6px;white-space:nowrap;letter-spacing:.04em;
+    text-transform:uppercase;
+  }
+  .btn-print:hover{border-color:var(--accent);color:var(--accent);}
+
+  .report-panel{display:none;}
+  .report-panel.active{display:block;animation:fadeUp .3s ease;}
+
+  .report-header{margin-bottom:24px;}
+  .report-eyebrow{
+    font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--accent);margin-bottom:8px;font-family:var(--mono);
+    display:flex;align-items:center;gap:8px;
+  }
+  .report-eyebrow::after{content:'';flex:1;height:1px;background:var(--border2);}
+  .report-title{font-size:22px;font-weight:800;margin-bottom:4px;letter-spacing:-.01em;}
+  .report-subtitle{color:var(--muted);font-size:13px;}
+
+  /* Rec banner */
+  .rec-banner{
+    background:var(--accent-dim);
+    border:1px solid var(--accent-border);
+    border-left:3px solid var(--accent);
+    border-radius:var(--radius-sm);
+    padding:14px 20px;margin-bottom:24px;
+    display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;
+  }
+  .rec-banner .rec-label{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--accent);font-weight:700;font-family:var(--mono);margin-bottom:3px;}
+  .rec-banner .rec-type{font-size:16px;font-weight:800;color:var(--text);letter-spacing:-.01em;}
+  .rec-banner .rec-icon{font-size:24px;opacity:.7;}
+
+  /* Sections */
+  .report-section{
+    background:var(--card2);border:1px solid var(--border);
+    border-radius:var(--radius);margin-bottom:10px;overflow:hidden;
+  }
+  .section-header{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:11px 18px;border-bottom:1px solid var(--border);background:var(--surface);
+  }
+  .section-header h3{
+    font-size:10px;font-weight:700;text-transform:uppercase;
+    letter-spacing:.1em;color:var(--accent);font-family:var(--mono);
+  }
+  .section-body{padding:14px 18px;font-size:13px;line-height:1.8;color:var(--text);}
+  .section-body ul{padding-left:16px;}
+  .section-body li{margin-bottom:5px;}
+  .section-body p{margin-bottom:6px;}
+
+  /* Tags */
+  .tags{display:flex;flex-wrap:wrap;gap:7px;margin-top:6px;}
+  .tag{font-size:11px;font-weight:700;padding:3px 10px;border-radius:3px;border:1px solid;letter-spacing:.04em;font-family:var(--mono);}
+  .tag-risk{color:var(--danger);border-color:var(--danger);background:rgba(232,64,64,.08);}
+  .tag-warn{color:var(--warn);border-color:var(--warn);background:rgba(210,153,34,.08);}
+  .tag-ok{color:var(--success);border-color:var(--success);background:rgba(46,204,113,.08);}
+  .tag-info{color:var(--accent);border-color:var(--accent);background:var(--accent-dim);}
+
+  .copy-btn{
+    font-family:var(--mono);font-size:11px;font-weight:700;padding:4px 10px;
+    background:transparent;border:1px solid var(--border2);border-radius:3px;
+    color:var(--muted);cursor:pointer;transition:all .15s;
+    display:flex;align-items:center;gap:4px;letter-spacing:.04em;
+  }
+  .copy-btn:hover{border-color:var(--accent);color:var(--accent);}
+  .copy-btn.copied{border-color:var(--success);color:var(--success);}
+
+  .reset-row{text-align:center;margin-top:36px;}
+  .val-msg{font-size:12px;color:var(--danger);margin-top:8px;display:none;font-family:var(--mono);}
+  .val-msg.show{display:block;}
+  .divider{border:none;border-top:1px solid var(--border);margin:18px 0;}
+
+  /* Credit footer */
+  .credit-footer{
+    text-align:center;padding:20px;margin-top:8px;
+    font-size:11px;color:var(--muted2);letter-spacing:.06em;
+    font-family:var(--mono);border-top:1px solid var(--border);
+  }
+  .credit-footer a{color:var(--accent);text-decoration:none;}
+  .credit-footer a:hover{text-decoration:underline;}
+
+  /* Print overlay */
+  #printOverlay{display:none;position:fixed;inset:0;background:#fff;z-index:9999;overflow:auto;padding:0;}
+  #printOverlay.visible{display:block;}
+  @media print{
+    body>*:not(#printOverlay){display:none!important;}
+    #printOverlay{display:block!important;position:static!important;overflow:visible!important;}
+    .po-close-bar{display:none!important;}
+    .po-report{page-break-after:always;}
+    .po-report:last-child{page-break-after:avoid;}
+  }
+
+  /* Print styles */
+  .po-close-bar{background:#0090a8;color:#fff;padding:10px 20px;display:flex;justify-content:space-between;align-items:center;font-family:'Segoe UI',sans-serif;font-size:13px;position:sticky;top:0;z-index:10;}
+  .po-close-bar button{background:#fff;color:#0090a8;border:none;border-radius:4px;padding:6px 16px;font-weight:700;cursor:pointer;font-size:13px;}
+  .po-inner{padding:28px 36px;font-family:'Segoe UI',system-ui,sans-serif;font-size:10px;line-height:1.65;color:#111;max-width:900px;margin:0 auto;}
+  .po-report{padding-bottom:30px;}
+  .po-topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;padding-bottom:8px;border-bottom:2px solid #0090a8;}
+  .po-brand{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#0090a8;}
+  .po-credit{font-size:9px;color:#aaa;letter-spacing:.06em;}
+  .po-report-title{font-size:17px;font-weight:800;color:#111;margin-bottom:2px;}
+  .po-subtitle{font-size:10px;color:#666;margin-bottom:6px;}
+  .po-meta{font-size:9px;color:#777;margin-bottom:10px;padding:6px 10px;background:#f5f5f5;border-radius:3px;}
+  .po-rec{background:#f0fafa;border:1px solid #b2e0e0;border-left:3px solid #0090a8;border-radius:3px;padding:8px 14px;margin-bottom:12px;}
+  .po-rec-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#0090a8;margin-bottom:2px;}
+  .po-rec-type{font-size:13px;font-weight:800;color:#111;}
+  .po-section{border:1px solid #ddd;border-radius:3px;margin-bottom:7px;break-inside:avoid;}
+  .po-section-header{background:#f5f7f8;border-bottom:1px solid #ddd;padding:5px 12px;}
+  .po-section-header h3{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#0090a8;}
+  .po-section-body{padding:7px 12px;font-size:10px;line-height:1.6;}
+  .po-section-body ul{padding-left:14px;}
+  .po-section-body li{margin-bottom:3px;}
+  .po-section-body p{margin-bottom:4px;}
+  .po-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:3px;}
+  .po-tag{font-size:9px;font-weight:700;padding:2px 8px;border-radius:2px;border:1px solid;display:inline-block;}
+  .po-tag-risk{color:#c0392b;border-color:#c0392b;background:#fff5f5;}
+  .po-tag-warn{color:#b7770d;border-color:#b7770d;background:#fffbf0;}
+  .po-tag-ok{color:#1a7a2e;border-color:#1a7a2e;background:#f0fff4;}
+  .po-tag-info{color:#0090a8;border-color:#0090a8;background:#f0fafa;}
+  .po-footer{font-size:9px;color:#bbb;text-align:right;margin-top:10px;padding-top:8px;border-top:1px solid #eee;}
+
+  @media(max-width:600px){
+    .card{padding:20px 16px;}
+    .options-grid{grid-template-columns:1fr;}
+    .nav-row{flex-direction:column;}
+    .btn{width:100%;justify-content:center;}
+    .report-action-bar{flex-direction:column;align-items:stretch;}
+    .topbar{padding:12px 16px;}
+    .topbar-credit{display:none;}
+  }
+</style>
+</head>
+<body>
+
+<!-- Print overlay -->
+<div id="printOverlay">
+  <div class="po-close-bar">
+    <span>Print preview — use your browser's print dialog or save as PDF</span>
+    <button onclick="closePrint()">✕ Close</button>
+  </div>
+  <div class="po-inner" id="poInner"></div>
+</div>
+
+<!-- Corner accents -->
+<div class="corner-tl"></div>
+<div class="corner-br"></div>
+
+<!-- Top bar -->
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="topbar-logo">
+      <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="1" y="1" width="6" height="6" stroke="#00c8c8" stroke-width="1.2"/>
+        <rect x="9" y="1" width="6" height="6" stroke="#00c8c8" stroke-width="1.2" opacity=".5"/>
+        <rect x="1" y="9" width="6" height="6" stroke="#00c8c8" stroke-width="1.2" opacity=".5"/>
+        <rect x="9" y="9" width="6" height="6" stroke="#00c8c8" stroke-width="1.2"/>
+      </svg>
+    </div>
+    <div class="topbar-title">Learning <span>Intake</span> Analyzer</div>
+  </div>
+  <div class="topbar-credit">Built by <strong>Nikki Rosenvald</strong></div>
+</div>
+
+<div class="page">
+
+  <!-- Header -->
+  <div class="header" id="mainHeader">
+    <div class="header-eyebrow">
+      <div class="badge"><span class="badge-dot"></span> Active</div>
+      <div class="eyebrow-line"></div>
+      <div class="eyebrow-label">Learning Program Management</div>
+    </div>
+    <h1>Learning &amp; <em>Enablement</em><br><span class="hi">Request</span> Intake</h1>
+    <p class="header-sub">Answer <strong>8 questions</strong> and get two reports ready to take into kickoff.</p>
+    <p class="header-sub" style="margin-top:10px;"><strong>1.</strong> A plain-language summary the requester can read and act on immediately.</p>
+    <p class="header-sub"><strong>2.</strong> A full diagnostic the learning team can use to scope, plan, and facilitate the first meeting with confidence.</p>
+    <p class="header-sub" style="margin-top:10px;color:var(--accent);font-size:13px;">Better intake means better projects. This gets everyone aligned before the work begins.</p>
+  </div>
+
+  <!-- Progress -->
+  <div class="progress-wrap" id="progressWrap">
+    <div class="progress-meta">
+      <span id="progressText" style="font-family:var(--mono)">QUESTION 01 / 08</span>
+      <span id="progressPct">12%</span>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:12%"></div></div>
+  </div>
+
+  <!-- Q1 -->
+  <div class="card active" id="q1">
+    <div class="q-label">Question 01 / 08</div>
+    <div class="q-title">What is this request about, and when does it need to be ready?</div>
+    <div class="q-sub">Give a brief description, then pick the timeline that fits.</div>
+    <textarea class="text-input" id="q1_desc" rows="3" placeholder="Briefly describe the request or situation..."></textarea>
+    <div class="sub-section">
+      <div class="sub-label">Timeline</div>
+      <div class="options-grid single-col" id="q1_timeline">
+        <button class="option-btn" data-val="Under 2 weeks" onclick="selectSingle(this,'q1_timeline')"><span class="check">✓</span> Under 2 weeks</button>
+        <button class="option-btn" data-val="Within 30 days" onclick="selectSingle(this,'q1_timeline')"><span class="check">✓</span> Within 30 days</button>
+        <button class="option-btn" data-val="1 to 3 months" onclick="selectSingle(this,'q1_timeline')"><span class="check">✓</span> 1 to 3 months</button>
+        <button class="option-btn" data-val="3 to 6 months" onclick="selectSingle(this,'q1_timeline')"><span class="check">✓</span> 3 to 6 months</button>
+        <button class="option-btn" data-val="No firm date" onclick="selectSingle(this,'q1_timeline')"><span class="check">✓</span> No firm date</button>
+      </div>
+    </div>
+    <div class="val-msg" id="val1">// Please describe the request and choose a timeline.</div>
+  </div>
+
+  <!-- Q2 -->
+  <div class="card" id="q2">
+    <div class="q-label">Question 02 / 08</div>
+    <div class="q-title">Who is this for, and about how many people?</div>
+    <div class="q-sub">Select all audience groups that apply, then pick a learner count.</div>
+    <div class="options-grid" id="q2_audience">
+      <button class="option-btn" data-val="New hires" onclick="selectMulti(this)"><span class="square-check">✓</span> New hires</button>
+      <button class="option-btn" data-val="Frontline teams" onclick="selectMulti(this)"><span class="square-check">✓</span> Frontline teams</button>
+      <button class="option-btn" data-val="Managers" onclick="selectMulti(this)"><span class="square-check">✓</span> Managers</button>
+      <button class="option-btn" data-val="Leaders" onclick="selectMulti(this)"><span class="square-check">✓</span> Leaders</button>
+      <button class="option-btn" data-val="Technical teams" onclick="selectMulti(this)"><span class="square-check">✓</span> Technical teams</button>
+      <button class="option-btn" data-val="Sales" onclick="selectMulti(this)"><span class="square-check">✓</span> Sales</button>
+      <button class="option-btn" data-val="Customer facing teams" onclick="selectMulti(this)"><span class="square-check">✓</span> Customer facing teams</button>
+      <button class="option-btn" data-val="Compliance roles" onclick="selectMulti(this)"><span class="square-check">✓</span> Compliance roles</button>
+      <button class="option-btn" data-val="Vendors" onclick="selectMulti(this)"><span class="square-check">✓</span> Vendors</button>
+      <button class="option-btn" data-val="All staff" onclick="selectMulti(this)"><span class="square-check">✓</span> All staff</button>
+    </div>
+    <div class="sub-section">
+      <div class="sub-label">Approximate learner count</div>
+      <div class="options-grid" id="q2_count">
+        <button class="option-btn" data-val="Under 50" onclick="selectSingle(this,'q2_count')"><span class="check">✓</span> Under 50</button>
+        <button class="option-btn" data-val="50 to 100" onclick="selectSingle(this,'q2_count')"><span class="check">✓</span> 50 to 100</button>
+        <button class="option-btn" data-val="100 to 500" onclick="selectSingle(this,'q2_count')"><span class="check">✓</span> 100 to 500</button>
+        <button class="option-btn" data-val="500 to 1000" onclick="selectSingle(this,'q2_count')"><span class="check">✓</span> 500 to 1000</button>
+        <button class="option-btn" data-val="1000 plus" onclick="selectSingle(this,'q2_count')"><span class="check">✓</span> 1000+</button>
+      </div>
+    </div>
+    <div class="val-msg" id="val2">// Please select at least one audience group and a learner count.</div>
+  </div>
+
+  <!-- Q3 -->
+  <div class="card" id="q3">
+    <div class="q-label">Question 03 / 08</div>
+    <div class="q-title">Why is this needed right now?</div>
+    <div class="q-sub">Pick the one that best captures the real driver.</div>
+    <div class="options-grid single-col" id="q3_driver">
+      <button class="option-btn" data-val="Audit or regulatory need" onclick="selectSingle(this,'q3_driver')"><span class="check">✓</span> Audit or regulatory need</button>
+      <button class="option-btn" data-val="Incident or repeated issue" onclick="selectSingle(this,'q3_driver')"><span class="check">✓</span> Incident or repeated issue</button>
+      <button class="option-btn" data-val="New system or process" onclick="selectSingle(this,'q3_driver')"><span class="check">✓</span> New system or process</button>
+      <button class="option-btn" data-val="Performance gap" onclick="selectSingle(this,'q3_driver')"><span class="check">✓</span> Performance gap</button>
+      <button class="option-btn" data-val="Leadership priority" onclick="selectSingle(this,'q3_driver')"><span class="check">✓</span> Leadership priority</button>
+      <button class="option-btn" data-val="Preparing ahead of change" onclick="selectSingle(this,'q3_driver')"><span class="check">✓</span> Preparing ahead of change</button>
+    </div>
+    <div class="val-msg" id="val3">// Please select a driver.</div>
+  </div>
+
+  <!-- Q4 -->
+  <div class="card" id="q4">
+    <div class="q-label">Question 04 / 08</div>
+    <div class="q-title">What should people actually do differently after this?</div>
+    <div class="q-sub">Pick the outcome that matters most.</div>
+    <div class="options-grid single-col" id="q4_outcome">
+      <button class="option-btn" data-val="Know something new" onclick="selectSingle(this,'q4_outcome')"><span class="check">✓</span> Know something new</button>
+      <button class="option-btn" data-val="Do a task correctly" onclick="selectSingle(this,'q4_outcome')"><span class="check">✓</span> Do a task correctly</button>
+      <button class="option-btn" data-val="Make better decisions" onclick="selectSingle(this,'q4_outcome')"><span class="check">✓</span> Make better decisions</button>
+      <button class="option-btn" data-val="Follow a policy" onclick="selectSingle(this,'q4_outcome')"><span class="check">✓</span> Follow a policy</button>
+      <button class="option-btn" data-val="Coach or reinforce with others" onclick="selectSingle(this,'q4_outcome')"><span class="check">✓</span> Coach or reinforce with others</button>
+      <button class="option-btn" data-val="Adopt a new process" onclick="selectSingle(this,'q4_outcome')"><span class="check">✓</span> Adopt a new process</button>
+    </div>
+    <div class="val-msg" id="val4">// Please select an outcome.</div>
+  </div>
+
+  <!-- Q5 -->
+  <div class="card" id="q5">
+    <div class="q-label">Question 05 / 08</div>
+    <div class="q-title">What already exists today?</div>
+    <div class="q-sub">Select everything that is currently available to work with.</div>
+    <div class="options-grid" id="q5_exists">
+      <button class="option-btn" data-val="Nothing exists" onclick="selectMulti(this)"><span class="square-check">✓</span> Nothing exists</button>
+      <button class="option-btn" data-val="Course content" onclick="selectMulti(this)"><span class="square-check">✓</span> Course content</button>
+      <button class="option-btn" data-val="Job aids" onclick="selectMulti(this)"><span class="square-check">✓</span> Job aids</button>
+      <button class="option-btn" data-val="Policy docs" onclick="selectMulti(this)"><span class="square-check">✓</span> Policy docs</button>
+      <button class="option-btn" data-val="Videos" onclick="selectMulti(this)"><span class="square-check">✓</span> Videos</button>
+      <button class="option-btn" data-val="Instructor materials" onclick="selectMulti(this)"><span class="square-check">✓</span> Instructor materials</button>
+      <button class="option-btn" data-val="Onboarding content" onclick="selectMulti(this)"><span class="square-check">✓</span> Onboarding content</button>
+      <button class="option-btn" data-val="SMEs available" onclick="selectMulti(this)"><span class="square-check">✓</span> SMEs available</button>
+      <button class="option-btn" data-val="Vendor content" onclick="selectMulti(this)"><span class="square-check">✓</span> Vendor content</button>
+    </div>
+    <div class="val-msg" id="val5">// Please select at least one option.</div>
+  </div>
+
+  <!-- Q6 -->
+  <div class="card" id="q6">
+    <div class="q-label">Question 06 / 08</div>
+    <div class="q-title">How will success be judged?</div>
+    <div class="q-sub">Select all that apply. It is okay if this is still unclear.</div>
+    <div class="options-grid" id="q6_success">
+      <button class="option-btn" data-val="Completion" onclick="selectMulti(this)"><span class="square-check">✓</span> Completion</button>
+      <button class="option-btn" data-val="Quiz or knowledge check" onclick="selectMulti(this)"><span class="square-check">✓</span> Quiz or knowledge check</button>
+      <button class="option-btn" data-val="Confidence" onclick="selectMulti(this)"><span class="square-check">✓</span> Confidence</button>
+      <button class="option-btn" data-val="Manager observation" onclick="selectMulti(this)"><span class="square-check">✓</span> Manager observation</button>
+      <button class="option-btn" data-val="Behavior change" onclick="selectMulti(this)"><span class="square-check">✓</span> Behavior change</button>
+      <button class="option-btn" data-val="Fewer errors" onclick="selectMulti(this)"><span class="square-check">✓</span> Fewer errors</button>
+      <button class="option-btn" data-val="Adoption or usage" onclick="selectMulti(this)"><span class="square-check">✓</span> Adoption or usage</button>
+      <button class="option-btn" data-val="Audit readiness" onclick="selectMulti(this)"><span class="square-check">✓</span> Audit readiness</button>
+      <button class="option-btn" data-val="Not yet defined" onclick="selectMulti(this)"><span class="square-check">✓</span> Not yet defined</button>
+    </div>
+    <div class="val-msg" id="val6">// Please select at least one option.</div>
+  </div>
+
+  <!-- Q7 -->
+  <div class="card" id="q7">
+    <div class="q-label">Question 07 / 08</div>
+    <div class="q-title">Who should be in the first meeting?</div>
+    <div class="q-sub">Select everyone who should have a seat at the table.</div>
+    <div class="options-grid" id="q7_attendees">
+      <button class="option-btn" data-val="Requester" onclick="selectMulti(this)"><span class="square-check">✓</span> Requester</button>
+      <button class="option-btn" data-val="Business owner" onclick="selectMulti(this)"><span class="square-check">✓</span> Business owner</button>
+      <button class="option-btn" data-val="Sponsor" onclick="selectMulti(this)"><span class="square-check">✓</span> Sponsor</button>
+      <button class="option-btn" data-val="Learning lead" onclick="selectMulti(this)"><span class="square-check">✓</span> Learning lead</button>
+      <button class="option-btn" data-val="SME" onclick="selectMulti(this)"><span class="square-check">✓</span> SME</button>
+      <button class="option-btn" data-val="Process owner" onclick="selectMulti(this)"><span class="square-check">✓</span> Process owner</button>
+      <button class="option-btn" data-val="Operations lead" onclick="selectMulti(this)"><span class="square-check">✓</span> Operations lead</button>
+      <button class="option-btn" data-val="Change or comms lead" onclick="selectMulti(this)"><span class="square-check">✓</span> Change or comms lead</button>
+      <button class="option-btn" data-val="Compliance or legal" onclick="selectMulti(this)"><span class="square-check">✓</span> Compliance or legal</button>
+      <button class="option-btn" data-val="Regional lead" onclick="selectMulti(this)"><span class="square-check">✓</span> Regional lead</button>
+      <button class="option-btn" data-val="LMS or platform owner" onclick="selectMulti(this)"><span class="square-check">✓</span> LMS or platform owner</button>
+    </div>
+    <div class="val-msg" id="val7">// Please select at least one attendee.</div>
+  </div>
+
+  <!-- Q8 -->
+  <div class="card" id="q8">
+    <div class="q-label">Question 08 / 08</div>
+    <div class="q-title">What do you picture the experience looking like?</div>
+    <div class="q-sub">Select the formats and delivery elements you are considering. We will use this to flag scope and resourcing needs early.</div>
+    <div class="sub-section">
+      <div class="sub-label">Delivery format</div>
+      <div class="options-grid" id="q8_format">
+        <button class="option-btn" data-val="Microlearning (short modules under 10 min)" onclick="selectMulti(this)"><span class="square-check">✓</span> Microlearning (under 10 min)</button>
+        <button class="option-btn" data-val="Full eLearning course (30 to 60 min)" onclick="selectMulti(this)"><span class="square-check">✓</span> Full eLearning course (30 to 60 min)</button>
+        <button class="option-btn" data-val="Live facilitated session (virtual or in person)" onclick="selectMulti(this)"><span class="square-check">✓</span> Live facilitated session</button>
+        <button class="option-btn" data-val="Blended (self-paced plus live session)" onclick="selectMulti(this)"><span class="square-check">✓</span> Blended (self-paced + live)</button>
+        <button class="option-btn" data-val="Job aid or quick reference" onclick="selectMulti(this)"><span class="square-check">✓</span> Job aid or quick reference</button>
+        <button class="option-btn" data-val="Manager toolkit or coaching guide" onclick="selectMulti(this)"><span class="square-check">✓</span> Manager toolkit or coaching guide</button>
+        <button class="option-btn" data-val="Email or comms campaign" onclick="selectMulti(this)"><span class="square-check">✓</span> Email or comms campaign</button>
+        <button class="option-btn" data-val="Video (standalone explainer or demo)" onclick="selectMulti(this)"><span class="square-check">✓</span> Video (explainer or demo)</button>
+        <button class="option-btn" data-val="Knowledge base or wiki article" onclick="selectMulti(this)"><span class="square-check">✓</span> Knowledge base or wiki</button>
+        <button class="option-btn" data-val="Not sure yet" onclick="selectMulti(this)"><span class="square-check">✓</span> Not sure yet</button>
+      </div>
+    </div>
+    <hr class="divider">
+    <div class="sub-section">
+      <div class="sub-label">Media and content needs</div>
+      <div class="options-grid" id="q8_media">
+        <button class="option-btn" data-val="Screenshots or screen recordings" onclick="selectMulti(this)"><span class="square-check">✓</span> Screenshots or screen recordings</button>
+        <button class="option-btn" data-val="System walkthrough or demo" onclick="selectMulti(this)"><span class="square-check">✓</span> System walkthrough or demo</button>
+        <button class="option-btn" data-val="Voiceover narration" onclick="selectMulti(this)"><span class="square-check">✓</span> Voiceover narration</button>
+        <button class="option-btn" data-val="Scenario-based practice" onclick="selectMulti(this)"><span class="square-check">✓</span> Scenario-based practice</button>
+        <button class="option-btn" data-val="Facilitator guide or slide deck" onclick="selectMulti(this)"><span class="square-check">✓</span> Facilitator guide or slide deck</button>
+        <button class="option-btn" data-val="Participant workbook or activity guide" onclick="selectMulti(this)"><span class="square-check">✓</span> Participant workbook</button>
+        <button class="option-btn" data-val="Custom graphics or illustrations" onclick="selectMulti(this)"><span class="square-check">✓</span> Custom graphics</button>
+        <button class="option-btn" data-val="Assessment or knowledge check" onclick="selectMulti(this)"><span class="square-check">✓</span> Assessment or knowledge check</button>
+        <button class="option-btn" data-val="None identified yet" onclick="selectMulti(this)"><span class="square-check">✓</span> None identified yet</button>
+      </div>
+    </div>
+    <hr class="divider">
+    <div class="sub-section">
+      <div class="toggle-row">
+        <span class="toggle-label">Localization needed?</span>
+        <div class="toggle-btns" id="q8_local">
+          <button class="toggle-btn" data-val="Yes" onclick="selectToggle(this,'q8_local')">Yes</button>
+          <button class="toggle-btn" data-val="No" onclick="selectToggle(this,'q8_local')">No</button>
+          <button class="toggle-btn" data-val="Unsure" onclick="selectToggle(this,'q8_local')">Unsure</button>
+        </div>
+      </div>
+      <div id="langRow" class="hidden">
+        <input type="text" class="sub-input" id="q8_languages" placeholder="List languages or regions (e.g. Spanish, EMEA, French Canada)">
+      </div>
+    </div>
+    <div class="sub-section">
+      <div class="toggle-row">
+        <span class="toggle-label">Accessibility needs?</span>
+        <div class="toggle-btns" id="q8_a11y">
+          <button class="toggle-btn" data-val="Yes" onclick="selectToggle(this,'q8_a11y')">Yes</button>
+          <button class="toggle-btn" data-val="No" onclick="selectToggle(this,'q8_a11y')">No</button>
+          <button class="toggle-btn" data-val="Unsure" onclick="selectToggle(this,'q8_a11y')">Unsure</button>
+        </div>
+      </div>
+    </div>
+    <div class="val-msg" id="val8">// Please select at least one delivery format, one media option, and answer the localization and accessibility questions.</div>
+  </div>
+
+</div><!-- end .page -->
+
+<!-- Nav -->
+<div class="nav-row" id="navRow">
+  <button class="btn btn-ghost" id="backBtn" onclick="navigate(-1)" style="visibility:hidden">← Back</button>
+  <button class="btn btn-primary" id="nextBtn" onclick="navigate(1)"><span>Next →</span></button>
+</div>
+
+<!-- Reports -->
+<div id="reports">
+<div class="page">
+
+  <div class="report-action-bar">
+    <div class="report-tabs">
+      <button class="tab-btn active" onclick="switchTab('requester')">Requester Summary</button>
+      <button class="tab-btn" onclick="switchTab('diagnostic')">Team Diagnostic</button>
+    </div>
+    <div class="print-btns">
+      <button class="btn-print" onclick="openPrint('requester')">⬡ Requester PDF</button>
+      <button class="btn-print" onclick="openPrint('diagnostic')">⬡ Diagnostic PDF</button>
+    </div>
+  </div>
+
+  <!-- Report 1 -->
+  <div class="report-panel active" id="panel-requester">
+    <div class="report-header">
+      <div class="report-eyebrow">Report 01</div>
+      <div class="report-title">Requester <em style="color:var(--accent);font-style:normal">Summary</em></div>
+      <div class="report-subtitle">A plain-language read of where this request stands and what comes next.</div>
+    </div>
+    <div class="rec-banner">
+      <div><div class="rec-label">Recommended Approach</div><div class="rec-type" id="r1-rec"></div></div>
+      <div class="rec-icon">◈</div>
+    </div>
+    <div id="r1-sections"></div>
+  </div>
+
+  <!-- Report 2 -->
+  <div class="report-panel" id="panel-diagnostic">
+    <div class="report-header">
+      <div class="report-eyebrow">Report 02</div>
+      <div class="report-title">Learning Team <em style="color:var(--accent);font-style:normal">Diagnostic</em></div>
+      <div class="report-subtitle">A deeper read covering rationale, risks, and first meeting prep.</div>
+    </div>
+    <div class="rec-banner">
+      <div><div class="rec-label">Solution Path</div><div class="rec-type" id="r2-rec"></div></div>
+      <div class="rec-icon">◈</div>
+    </div>
+    <div id="r2-sections"></div>
+  </div>
+
+  <div class="reset-row">
+    <button class="btn btn-danger" onclick="resetTool()">↺ Start Over</button>
+  </div>
+
+  <div class="credit-footer">
+    Built by <a href="https://nikkirosenvald.com" target="_blank">Nikki Rosenvald</a> &nbsp;·&nbsp; Learning Program Manager &amp; Instructional Designer &nbsp;·&nbsp; <a href="https://nikkirosenvald.com" target="_blank">nikkirosenvald.com</a>
+  </div>
+
+</div>
+</div>
+
+<script>
+/* =============================================
+   CENTRAL INTAKE OBJECT
+   ============================================= */
+let intake={description:'',timeline:'',audience:[],learnerCount:'',driver:'',outcome:'',existingAssets:[],successMeasures:[],meetingAttendees:[],deliveryFormats:[],media:[],localization:'',languages:'',accessibility:''};
+let currentStep=1;
+const totalSteps=8;
+
+function selectSingle(btn,groupId){document.querySelectorAll('#'+groupId+' .option-btn').forEach(b=>b.classList.remove('selected'));btn.classList.add('selected');}
+function selectMulti(btn){btn.classList.toggle('selected');}
+function selectToggle(btn,groupId){document.querySelectorAll('#'+groupId+' .toggle-btn').forEach(b=>b.classList.remove('selected'));btn.classList.add('selected');if(groupId==='q8_local')document.getElementById('langRow').classList.toggle('hidden',btn.dataset.val!=='Yes');}
+function getSelected(gid){return[...document.querySelectorAll('#'+gid+' .option-btn.selected')].map(b=>b.dataset.val);}
+function getSingleSelected(gid){const s=document.querySelector('#'+gid+' .option-btn.selected');return s?s.dataset.val:'';}
+function getToggleSelected(gid){const s=document.querySelector('#'+gid+' .toggle-btn.selected');return s?s.dataset.val:'';}
+
+function validateStep(step){
+  const hide=id=>document.getElementById(id).classList.remove('show');
+  const show=id=>document.getElementById(id).classList.add('show');
+  if(step===1){const d=document.getElementById('q1_desc').value.trim(),t=getSingleSelected('q1_timeline');if(!d||!t){show('val1');return false;}hide('val1');return true;}
+  if(step===2){const a=getSelected('q2_audience'),c=getSingleSelected('q2_count');if(!a.length||!c){show('val2');return false;}hide('val2');return true;}
+  if(step===3){if(!getSingleSelected('q3_driver')){show('val3');return false;}hide('val3');return true;}
+  if(step===4){if(!getSingleSelected('q4_outcome')){show('val4');return false;}hide('val4');return true;}
+  if(step===5){if(!getSelected('q5_exists').length){show('val5');return false;}hide('val5');return true;}
+  if(step===6){if(!getSelected('q6_success').length){show('val6');return false;}hide('val6');return true;}
+  if(step===7){if(!getSelected('q7_attendees').length){show('val7');return false;}hide('val7');return true;}
+  if(step===8){const fmt=getSelected('q8_format'),med=getSelected('q8_media'),loc=getToggleSelected('q8_local'),a11y=getToggleSelected('q8_a11y');if(!fmt.length||!med.length||!loc||!a11y){show('val8');return false;}hide('val8');return true;}
+  return true;
+}
+
+function collectStep(step){
+  if(step===1){intake.description=document.getElementById('q1_desc').value.trim();intake.timeline=getSingleSelected('q1_timeline');}
+  if(step===2){intake.audience=getSelected('q2_audience');intake.learnerCount=getSingleSelected('q2_count');}
+  if(step===3)intake.driver=getSingleSelected('q3_driver');
+  if(step===4)intake.outcome=getSingleSelected('q4_outcome');
+  if(step===5)intake.existingAssets=getSelected('q5_exists');
+  if(step===6)intake.successMeasures=getSelected('q6_success');
+  if(step===7)intake.meetingAttendees=getSelected('q7_attendees');
+  if(step===8){intake.deliveryFormats=getSelected('q8_format');intake.media=getSelected('q8_media');intake.localization=getToggleSelected('q8_local');intake.languages=document.getElementById('q8_languages').value.trim();intake.accessibility=getToggleSelected('q8_a11y');}
+}
+
+function navigate(dir){
+  if(dir===1&&!validateStep(currentStep))return;
+  collectStep(currentStep);
+  if(dir===1&&currentStep===totalSteps){buildReports();return;}
+  document.getElementById('q'+currentStep).classList.remove('active');
+  currentStep+=dir;
+  document.getElementById('q'+currentStep).classList.add('active');
+  updateProgress();updateNav();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function updateProgress(){
+  const pct=Math.round((currentStep/totalSteps)*100);
+  const pad=n=>String(n).padStart(2,'0');
+  document.getElementById('progressText').textContent='QUESTION '+pad(currentStep)+' / '+pad(totalSteps);
+  document.getElementById('progressPct').textContent=pct+'%';
+  document.getElementById('progressFill').style.width=pct+'%';
+}
+function updateNav(){
+  document.getElementById('backBtn').style.visibility=currentStep>1?'visible':'hidden';
+  document.getElementById('nextBtn').querySelector('span').textContent=currentStep===totalSteps?'Generate Reports →':'Next →';
+}
+
+/* =============================================
+   RECOMMENDATION ENGINE
+   ============================================= */
+function deriveRecommendation(){
+  const d=intake.driver,aud=intake.audience,out=intake.outcome,tl=intake.timeline;
+  const assets=intake.existingAssets,success=intake.successMeasures,fmt=intake.deliveryFormats;
+  const nothing=assets.includes('Nothing exists');
+  const undefined_success=success.includes('Not yet defined')&&success.length===1;
+  const wantsLive=fmt.includes('Live facilitated session (virtual or in person)');
+  const wantsMicro=fmt.includes('Microlearning (short modules under 10 min)');
+  const wantsBlended=fmt.includes('Blended (self-paced plus live session)');
+  if(undefined_success&&nothing)return'Scope clarification before solutioning';
+  if(d==='Audit or regulatory need')return'Mandatory concise learning plus job aid';
+  if(d==='Leadership priority'&&(aud.includes('Managers')||aud.includes('Leaders')))return'Blended enablement';
+  if(d==='Incident or repeated issue')return'Performance support first';
+  if(out==='Coach or reinforce with others')return'Communications plus manager reinforcement';
+  if(wantsLive||wantsBlended)return'Learning led intervention';
+  if(wantsMicro&&d==='Performance gap')return'Learning led intervention';
+  if(d==='New system or process'||out==='Adopt a new process')return'Blended enablement';
+  if(d==='Performance gap'&&(out==='Do a task correctly'||out==='Make better decisions'))return'Learning led intervention';
+  if(out==='Follow a policy')return'Mandatory concise learning plus job aid';
+  if((tl==='Under 2 weeks'||tl==='Within 30 days')&&nothing)return'Scope clarification before solutioning';
+  if(d==='Preparing ahead of change')return'Blended enablement';
+  return'Learning led intervention';
+}
+
+/* =============================================
+   REPORT BUILDERS
+   ============================================= */
+function buildReports(){
+  const rec=deriveRecommendation(),d=intake;
+  const nothing=d.existingAssets.includes('Nothing exists');
+  const auditDriver=d.driver==='Audit or regulatory need';
+  const incidentDriver=d.driver==='Incident or repeated issue';
+  const locNeeded=d.localization==='Yes';
+  const undefinedSuccess=d.successMeasures.includes('Not yet defined');
+  const hasSystemMedia=d.media.includes('Screenshots or screen recordings')||d.media.includes('System walkthrough or demo');
+  const tightTimeline=d.timeline==='Under 2 weeks'||d.timeline==='Within 30 days';
+  const largeAudience=d.learnerCount==='500 to 1000'||d.learnerCount==='1000 plus';
+  const wantsLive=d.deliveryFormats.includes('Live facilitated session (virtual or in person)');
+  const wantsMicro=d.deliveryFormats.includes('Microlearning (short modules under 10 min)');
+  document.getElementById('r1-rec').textContent=rec;
+  document.getElementById('r2-rec').textContent=rec;
+  const r1=[
+    {title:'What this request likely needs',body:buildR1Needs(d,rec,nothing,auditDriver,incidentDriver)},
+    {title:'Why this is the current recommendation',body:buildR1Rationale(d,rec,nothing,incidentDriver)},
+    {title:'What will affect scope',body:buildR1Scope(d,nothing,locNeeded,largeAudience,hasSystemMedia,tightTimeline,wantsLive)},
+    {title:'What we still need from you',body:buildR1Needs2(d,undefinedSuccess,nothing)},
+    {title:'Who should join the first meeting',body:'<ul>'+d.meetingAttendees.map(a=>'<li>'+a+'</li>').join('')+'</ul>'},
+    {title:'What to prepare before kickoff',body:buildR1KickoffPrep(d,auditDriver,nothing)},
+    {title:'Recommended next step',body:buildR1NextStep(rec,tightTimeline,undefinedSuccess)}
+  ];
+  const r2=[
+    {title:'Intake diagnosis',body:buildR2Diagnosis(d,nothing,incidentDriver,undefinedSuccess)},
+    {title:'Likely solution path',body:buildR2SolutionPath(rec,d,wantsLive,wantsMicro)},
+    {title:'Decision rationale',body:buildR2Rationale(d,rec,nothing,incidentDriver,auditDriver,wantsLive)},
+    {title:'What would change the recommendation',body:buildR2WhatWouldChange(rec,d)},
+    {title:'Risk flags',body:buildR2Risks(d,nothing,incidentDriver,undefinedSuccess,tightTimeline,largeAudience,hasSystemMedia,locNeeded,wantsLive),tags:true},
+    {title:'Missing information',body:buildR2Missing(d,undefinedSuccess,nothing)},
+    {title:'Suggested first meeting attendees',body:buildR2Attendees(d,auditDriver,locNeeded,incidentDriver)},
+    {title:'Delivery format implications',body:buildR2Delivery(d,wantsLive,wantsMicro,nothing,tightTimeline)},
+    {title:'Media and content implications',body:buildR2Media(d,hasSystemMedia,nothing,wantsLive)},
+    {title:'Localization implications',body:buildR2Localization(d,locNeeded,largeAudience)},
+    {title:'Suggested measures of success',body:buildR2Measures(d,auditDriver,incidentDriver,undefinedSuccess)},
+    {title:'Suggested talking points for kickoff',body:buildR2Kickoff(d,rec,nothing,tightTimeline)}
+  ];
+  document.getElementById('r1-sections').innerHTML=r1.map(s=>sectionHTML(s,'r1')).join('');
+  document.getElementById('r2-sections').innerHTML=r2.map(s=>sectionHTML(s,'r2')).join('');
+  document.querySelectorAll('.card').forEach(c=>c.style.display='none');
+  document.getElementById('progressWrap').style.display='none';
+  document.getElementById('navRow').style.display='none';
+  document.getElementById('mainHeader').style.display='none';
+  document.getElementById('reports').style.display='block';
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function sectionHTML(section,prefix){
+  const id=prefix+'-'+section.title.replace(/\s/g,'-').toLowerCase().replace(/[^a-z0-9-]/g,'');
+  return`<div class="report-section"><div class="section-header"><h3>${section.title}</h3><button class="copy-btn" onclick="copySection('${id}',this)">⎘ Copy</button></div><div class="section-body" id="${id}">${section.body}</div></div>`;
+}
+
+/* Report 1 */
+function buildR1Needs(d,rec,nothing,auditDriver,incidentDriver){
+  let s=`<p>Based on the intake, this looks like a <strong>${rec}</strong>.</p>`;
+  if(auditDriver)s+='<p>Because this is driven by an audit or regulatory need, proof of completion and a verifiable record will be essential parts of any solution.</p>';
+  if(incidentDriver)s+='<p>Because this stems from an incident or repeated issue, the learning team will want to explore root cause before committing to a content solution.</p>';
+  if(nothing)s+='<p>Since nothing currently exists, expect this to be a build-from-zero effort, which carries meaningful scope and timeline implications.</p>';
+  s+=`<p>Target audience: <strong>${d.audience.join(', ')}</strong> (approximately ${d.learnerCount} learners). Desired outcome: <strong>${d.outcome}</strong>.</p>`;
+  if(d.deliveryFormats.length&&!d.deliveryFormats.includes('Not sure yet'))s+=`<p>Formats being considered: ${d.deliveryFormats.map(f=>f.split('(')[0].trim()).join(', ')}.</p>`;
+  return s;
+}
+function buildR1Rationale(d,rec,nothing,incidentDriver){
+  const r=[];
+  if(d.driver==='Audit or regulatory need')r.push('The driver is a compliance or regulatory requirement, which typically requires documented proof of completion.');
+  if(d.driver==='Leadership priority'&&(d.audience.includes('Managers')||d.audience.includes('Leaders')))r.push('Leadership-driven requests for manager and leader audiences rarely benefit from long courses. A targeted, scenario-based approach will be more credible and usable.');
+  if(incidentDriver)r.push('When something went wrong or keeps going wrong, training alone rarely fixes it. The recommendation accounts for deeper investigation before designing a solution.');
+  if(d.driver==='Performance gap')r.push('A clear performance gap with a task-based outcome points toward structured learning with practice built in.');
+  if(d.outcome==='Coach or reinforce with others')r.push('When the goal is reinforcement and coaching, communications and manager activation tend to move the needle more than courseware.');
+  if(d.deliveryFormats.includes('Live facilitated session (virtual or in person)'))r.push('A live session is in scope, which supports deeper application, discussion, and real-time Q&A — especially useful for complex topics or audiences who benefit from practice with peers.');
+  if(d.deliveryFormats.includes('Microlearning (short modules under 10 min)'))r.push('Microlearning is a strong fit for busy audiences who need targeted, just-in-time reinforcement rather than a full course.');
+  if(nothing)r.push('Building from zero adds time and cost. The approach reflects that reality.');
+  if(!r.length)r.push('The combination of driver, audience, and desired outcome most closely aligns with this approach based on the information provided.');
+  return'<ul>'+r.map(x=>'<li>'+x+'</li>').join('')+'</ul>';
+}
+function buildR1Scope(d,nothing,locNeeded,largeAudience,hasSystemMedia,tightTimeline,wantsLive){
+  const f=[];
+  if(nothing)f.push('No existing content means full build scope — this will take longer and cost more than an update or refresh.');
+  if(locNeeded)f.push('Localization is needed. Plan for translation, regional review, and extra QA cycles.');
+  if(largeAudience)f.push('Large audience size ('+d.learnerCount+') affects rollout logistics, LMS planning, and potentially versioning.');
+  if(hasSystemMedia)f.push('Screenshots or system walkthroughs are required. These need to be captured, version-controlled, and updated when the system changes.');
+  if(tightTimeline)f.push('The timeline ('+d.timeline+') is tight. The team will need to scope carefully and may need to phase the work.');
+  if(d.accessibility==='Yes')f.push('Accessibility requirements will affect design choices, review cycles, and potentially voiceover or captioning needs.');
+  if(wantsLive)f.push('Live facilitated sessions require facilitator preparation, scheduling, session materials, and potentially multiple cohorts for large audiences.');
+  if(d.media.includes('Scenario-based practice'))f.push('Scenario design typically requires multiple SME review rounds and adds development time.');
+  if(!f.length)f.push('No major scope flags based on current information.');
+  return'<ul>'+f.map(x=>'<li>'+x+'</li>').join('')+'</ul>';
+}
+function buildR1Needs2(d,undefinedSuccess,nothing){
+  const i=[];
+  if(undefinedSuccess)i.push('A clear definition of what success looks like — without this, it will be hard to design the right solution or prove it worked.');
+  if(nothing)i.push('Any source material, SME availability, or reference content that can anchor the build.');
+  if(d.localization==='Unsure')i.push('Clarity on whether localization is required, and if so, which languages or regions.');
+  if(d.accessibility==='Unsure')i.push('Confirmation of accessibility requirements, especially if the audience includes any legal or compliance obligations.');
+  if(d.deliveryFormats.includes('Not sure yet'))i.push('A clearer picture of the preferred delivery format — even a rough idea helps the team scope and resource appropriately.');
+  i.push('Confirmation that the right stakeholders and decision-makers have been identified.');
+  if(d.driver==='Incident or repeated issue')i.push('Any data or documentation on the incident or pattern — root cause context will directly shape the solution.');
+  return'<ul>'+i.map(x=>'<li>'+x+'</li>').join('')+'</ul>';
+}
+function buildR1KickoffPrep(d,auditDriver,nothing){
+  const i=['Be ready to describe the business problem in plain terms, not just the content you want.','Know who has final approval on the solution and timeline.'];
+  if(auditDriver)i.push('Bring the specific audit requirement, regulation, or finding that is driving this request.');
+  if(nothing)i.push('Identify at least one SME who can commit time to review and validate content.');
+  if(d.timeline==='Under 2 weeks'||d.timeline==='Within 30 days')i.push('Come prepared to discuss what the minimum viable version looks like if the full scope cannot fit the timeline.');
+  if(d.deliveryFormats.includes('Live facilitated session (virtual or in person)'))i.push('If a live session is in scope, bring ideas for who will facilitate and whether a pilot cohort makes sense before full rollout.');
+  i.push('If there is existing documentation, policy, or process material, bring it or send it ahead.');
+  return'<ul>'+i.map(x=>'<li>'+x+'</li>').join('')+'</ul>';
+}
+function buildR1NextStep(rec,tightTimeline,undefinedSuccess){
+  if(undefinedSuccess)return'<p>Schedule a scoping conversation before committing to any approach. The success definition needs to come first.</p>';
+  if(tightTimeline)return'<p>Prioritize a fast kickoff meeting. The timeline leaves little room, and the team needs to align on what is in scope before any work begins.</p>';
+  if(rec==='Scope clarification before solutioning')return'<p>Do not start designing yet. The first step is a focused discovery conversation to align on the problem, the audience, and what success actually means.</p>';
+  return'<p>Schedule the kickoff meeting with the attendees identified in this intake. Come with the business problem framed clearly, and be prepared to discuss priorities if trade-offs are needed.</p>';
+}
+
+/* Report 2 */
+function buildR2Diagnosis(d,nothing,incidentDriver,undefinedSuccess){
+  let s=`<p>Driver: <strong>${d.driver}</strong>. Outcome target: <strong>${d.outcome}</strong>. Timeline: <strong>${d.timeline}</strong>. Audience: <strong>${d.audience.join(', ')}</strong> (~${d.learnerCount} learners).</p>`;
+  if(d.deliveryFormats.length&&!d.deliveryFormats.includes('Not sure yet'))s+=`<p>Delivery formats in scope: ${d.deliveryFormats.map(f=>f.split('(')[0].trim()).join(', ')}.</p>`;
+  if(incidentDriver)s+='<p>The incident or repeated issue driver is a yellow flag. The root cause may not be a knowledge gap, and designing content without investigating further creates risk.</p>';
+  if(undefinedSuccess)s+='<p>Success is not yet defined. This is a significant design constraint and should be resolved before solutioning begins.</p>';
+  if(nothing)s+='<p>No existing assets are available. This is a full build with all the scope and resourcing implications that come with it.</p>';
+  return s;
+}
+function buildR2SolutionPath(rec,d,wantsLive,wantsMicro){
+  const paths={'Learning led intervention':'Design a structured learning experience with clear objectives, practice opportunities, and a knowledge check. Anchor to the specific performance gap and tie outcomes back to measurable behavior change.'+(wantsLive?' The live facilitated session component adds depth — use it for application, discussion, and case practice rather than content delivery.':(wantsMicro?' Microlearning modules should be tightly scoped to a single behavior or concept each, with a clear application moment built in.':'')),'Blended enablement':'Combine a short foundational module or pre-work brief with a live session, on-the-job support tools, and manager reinforcement touchpoints. Avoid a single-channel approach — the blend is where the stickiness comes from.','Performance support first':'Start with job aids, checklists, or reference tools at the point of need. Layer in learning only where a true knowledge gap is confirmed. Flag the potential non-learning root causes upfront.','Scope clarification before solutioning':'Do not begin design. Hold a structured discovery session to align on the problem, define success, and surface any organizational or process factors before recommending a solution.','Communications plus manager reinforcement':'Design a manager activation strategy, message cascade, and reinforcement tools. Learning may play a supporting role but should not be the primary vehicle.','Mandatory concise learning plus job aid':'Build a tight, verifiable learning experience with a required knowledge check and a companion job aid for reference. Design for audit-readiness and track completion at the individual level.'};
+  return'<p>'+(paths[rec]||'Review intake and apply judgment based on the specific context.')+'</p>';
+}
+function buildR2Rationale(d,rec,nothing,incidentDriver,auditDriver,wantsLive){
+  const p=[];
+  if(auditDriver)p.push('Regulatory and audit drivers require proof of completion, traceable records, and often a defined pass threshold. Design must account for this from the start.');
+  if(incidentDriver)p.push('Incident-driven requests carry root cause risk. If the issue is process-based, tool-based, or incentive-based, learning will not fix it. This needs to be investigated before a solution is committed.');
+  if(d.driver==='Leadership priority'&&(d.audience.includes('Managers')||d.audience.includes('Leaders')))p.push('Leadership-initiated requests for senior audiences call for short, credible, scenario-based experiences. A long course risks disengagement and reduced credibility for the learning team.');
+  if(d.outcome==='Coach or reinforce with others')p.push('The desired outcome is coaching and reinforcement, not individual knowledge acquisition. The solution design should prioritize manager tools, conversation guides, and team-level activation.');
+  if(wantsLive)p.push('A live facilitated session is in scope. This format supports real-time application, peer learning, and facilitator-guided practice — and typically has higher engagement than asynchronous-only paths for complex topics.');
+  if(d.deliveryFormats.includes('Microlearning (short modules under 10 min)'))p.push('Microlearning is appropriate when learners need targeted, repeatable access to specific concepts or tasks. Modules should be standalone and scannable.');
+  if(nothing)p.push('Build-from-zero scope requires SME time, source material, stakeholder review cycles, and realistic timeline planning. Scope assumptions need to be made explicit.');
+  if(!p.length)p.push('The intake signals align with '+rec+' as the most appropriate approach given the stated driver, audience, and desired outcome.');
+  return'<ul>'+p.map(x=>'<li>'+x+'</li>').join('')+'</ul>';
+}
+function buildR2WhatWouldChange(rec,d){
+  const i=[];
+  if(rec!=='Scope clarification before solutioning')i.push('If success metrics are still undefined after kickoff, pause and resolve this before design begins.');
+  if(d.driver!=='Incident or repeated issue')i.push('If root cause analysis surfaces a process or tool problem rather than a knowledge gap, the recommendation would shift toward performance support or change management.');
+  if(!d.existingAssets.includes('Nothing exists'))i.push('If existing assets are found to be outdated or misaligned, they may need to be retired rather than repurposed.');
+  if(d.deliveryFormats.includes('Live facilitated session (virtual or in person)'))i.push('If facilitator availability or cohort scheduling becomes a constraint, a self-paced path with a short debrief session may be a workable alternative.');
+  i.push('If stakeholder priorities shift or a new executive sponsor gets involved, revisit the approach before locking scope.');
+  if(d.timeline==='Under 2 weeks'||d.timeline==='Within 30 days')i.push('If the timeline cannot flex, the solution scope needs to flex instead. Identify the minimum viable version now.');
+  return'<ul>'+i.map(x=>'<li>'+x+'</li>').join('')+'</ul>';
+}
+function buildR2Risks(d,nothing,incidentDriver,undefinedSuccess,tightTimeline,largeAudience,hasSystemMedia,locNeeded,wantsLive){
+  const risks=[];
+  if(undefinedSuccess)risks.push({label:'Success undefined',type:'risk',note:'Cannot design an effective solution or prove impact without a measurement baseline.'});
+  if(nothing)risks.push({label:'Build from zero',type:'warn',note:'No existing assets increases time, cost, and SME dependency.'});
+  if(incidentDriver)risks.push({label:'Root cause unknown',type:'risk',note:'Learning may not be the right solution if the issue is not a knowledge gap.'});
+  if(tightTimeline)risks.push({label:'Tight timeline',type:'warn',note:d.timeline+' timeline creates scope and quality risk if not managed early.'});
+  if(largeAudience)risks.push({label:'Large-scale rollout',type:'warn',note:'Audience of '+d.learnerCount+' requires LMS coordination, versioning, and rollout planning.'});
+  if(hasSystemMedia)risks.push({label:'System media maintenance',type:'warn',note:'Screenshots and demos create ongoing update burden tied to system changes.'});
+  if(locNeeded)risks.push({label:'Localization scope',type:'warn',note:'Translation and regional review add time and cost that must be planned for.'});
+  if(d.accessibility==='Yes')risks.push({label:'Accessibility requirements',type:'info',note:'Needs to be designed in from the start, not retrofitted.'});
+  if(wantsLive)risks.push({label:'Facilitation dependency',type:'info',note:'Live sessions require a qualified facilitator, scheduling coordination, and session materials.'});
+  if(d.deliveryFormats.includes('Blended (self-paced plus live session)'))risks.push({label:'Blended coordination',type:'info',note:'Blended paths require sequencing logic and clear learner communication so people arrive prepared.'});
+  if(!risks.length)risks.push({label:'No major flags',type:'ok',note:'Intake looks relatively clean based on current information.'});
+  return risks.map(r=>`<div class="tags"><span class="tag tag-${r.type}">${r.label}</span></div><p style="margin-top:6px;margin-bottom:12px">${r.note}</p>`).join('');
+}
+function buildR2Missing(d,undefinedSuccess,nothing){
+  const i=[];
+  if(undefinedSuccess)i.push('Definition of success — this is required before any design can begin.');
+  if(nothing)i.push('Source material, SME availability, and any reference documentation.');
+  if(d.localization==='Unsure')i.push('Confirmation of localization requirements and specific languages or regions.');
+  if(d.accessibility==='Unsure')i.push('Confirmation of accessibility requirements and any legal obligations.');
+  if(d.deliveryFormats.includes('Live facilitated session (virtual or in person)')||d.deliveryFormats.includes('Blended (self-paced plus live session)'))i.push('Facilitator name or pool, session length expectations, and whether a pilot run is planned.');
+  if(!d.meetingAttendees.includes('Sponsor'))i.push('Executive or organizational sponsor has not been identified.');
+  if(d.driver==='Incident or repeated issue')i.push('Root cause documentation, incident data, or any prior analysis that has been done.');
+  if(!i.length)i.push('No critical missing information based on the current intake.');
+  return'<ul>'+i.map(x=>'<li>'+x+'</li>').join('')+'</ul>';
+}
+function buildR2Attendees(d,auditDriver,locNeeded,incidentDriver){
+  const base=[...d.meetingAttendees],added=[];
+  if(auditDriver&&!base.includes('Compliance or legal'))added.push('Compliance or legal (audit driver present)');
+  if(locNeeded&&!base.includes('Regional lead'))added.push('Regional lead (localization required)');
+  if(incidentDriver&&!base.includes('Operations lead'))added.push('Operations lead (incident driver)');
+  let h='<p><strong>Selected in intake:</strong></p><ul>'+base.map(a=>'<li>'+a+'</li>').join('')+'</ul>';
+  if(added.length)h+='<p><strong>Also consider adding:</strong></p><ul>'+added.map(a=>'<li>'+a+'</li>').join('')+'</ul>';
+  return h;
+}
+function buildR2Delivery(d,wantsLive,wantsMicro,nothing,tightTimeline){
+  const i=[];
+  if(wantsMicro)i.push('Microlearning modules should be scoped to one concept or behavior each. Plan for a library approach if multiple topics are needed.');
+  if(wantsLive)i.push('Live sessions need a facilitator guide, participant materials, and a defined run-of-show. Budget 1.5x the session length for facilitation prep and debrief.');
+  if(d.deliveryFormats.includes('Blended (self-paced plus live session)'))i.push('Blended paths need a clear sequence and learner communication. Define what must be completed before the live session and how post-session reinforcement will work.');
+  if(d.deliveryFormats.includes('Manager toolkit or coaching guide'))i.push('Manager toolkits require their own design and review cycle separate from the learner content.');
+  if(d.deliveryFormats.includes('Email or comms campaign'))i.push('If a comms campaign is part of the plan, loop in the change or comms lead early. Message sequencing needs to be planned alongside the learning design.');
+  if(d.deliveryFormats.includes('Knowledge base or wiki article'))i.push('Wiki content has its own governance needs — owner, review cadence, tagging, and access. Build this into the plan from the start.');
+  if(d.deliveryFormats.includes('Video (standalone explainer or demo)'))i.push('Video has the longest production lead time. Confirm production resources before committing this to scope.');
+  if(nothing&&tightTimeline)i.push('Given the tight timeline and build-from-zero starting point, consider phasing: a job aid or short video first, with the fuller experience to follow.');
+  if(d.deliveryFormats.includes('Not sure yet'))i.push('Format is still undefined. Use the kickoff conversation to narrow this down — the format decision will directly affect tooling, resourcing, and timeline.');
+  if(!i.length)i.push('No specific delivery format flags based on current selections.');
+  return'<ul>'+i.map(x=>'<li>'+x+'</li>').join('')+'</ul>';
+}
+function buildR2Media(d,hasSystemMedia,nothing,wantsLive){
+  if(d.media.includes('None identified yet'))return'<p>No media needs have been identified yet. Revisit after the kickoff conversation shapes the solution approach.</p>';
+  const i=[];
+  if(hasSystemMedia){i.push('Screenshots and system walkthroughs require a dedicated capture session, file naming conventions, and a version control process.');i.push('Every system update will require a content review and potential re-capture.');}
+  if(d.media.includes('Voiceover narration'))i.push('Voiceover requires a finalized script and full stakeholder sign-off before recording. Late changes are expensive.');
+  if(d.media.includes('Scenario-based practice'))i.push('Scenario design requires SME input, realistic decision points, and usually multiple review rounds.');
+  if(d.media.includes('Facilitator guide or slide deck'))i.push('Facilitator guides require their own development and review cycle — not just a formatted download of the participant materials.');
+  if(d.media.includes('Participant workbook or activity guide'))i.push('Confirm print vs. digital format early for participant workbooks.');
+  if(d.media.includes('Custom graphics or illustrations'))i.push('Custom graphics require a design resource and review cycle. Confirm whether this is in-house or requires a vendor.');
+  if(d.media.includes('Assessment or knowledge check'))i.push('Assessments need a defined pass threshold, retake policy, and a decision on whether this is formative feedback or a completion gate.');
+  if(wantsLive&&!d.media.includes('Facilitator guide or slide deck'))i.push('A live session is in scope but no facilitator guide or slide deck has been selected. These will likely be needed.');
+  if(nothing)i.push('With no existing assets, all media will need to be created from scratch. This affects both scope and resourcing.');
+  if(!i.length)i.push('Media needs look manageable based on current selections. Confirm production resources at kickoff.');
+  return'<ul>'+i.map(x=>'<li>'+x+'</li>').join('')+'</ul>';
+}
+function buildR2Localization(d,locNeeded,largeAudience){
+  if(!locNeeded&&d.localization!=='Unsure')return'<p>Localization was flagged as not needed. If this changes, expect significant timeline and cost impact.</p>';
+  if(d.localization==='Unsure')return'<p>Localization status is still unclear. Resolve this before scoping the project. If needed, plan for translation, regional review, in-country QA, and culturally adapted examples or visuals.</p>';
+  let s=`<p>Localization is required${d.languages?' for: <strong>'+d.languages+'</strong>':''}.</p>`;
+  s+='<ul><li>Build with localization in mind from day one — retrofitting is expensive.</li><li>Identify in-country reviewers or regional leads early.</li><li>Plan for cultural adaptation, not just translation.</li>';
+  if(largeAudience)s+='<li>Large audience size makes regional versioning and release coordination more complex.</li>';
+  s+='</ul>';
+  return s;
+}
+function buildR2Measures(d,auditDriver,incidentDriver,undefinedSuccess){
+  if(undefinedSuccess)return'<p>Success has not been defined. Prioritize this conversation at or before kickoff. Designing without a measurement baseline creates risk for the project and the team.</p>';
+  const i=[];
+  if(d.successMeasures.includes('Completion')||auditDriver)i.push('Completion tracking: ensure the LMS can generate individual-level reports and support audit requests.');
+  if(d.successMeasures.includes('Quiz or knowledge check'))i.push('Knowledge check: define the pass threshold and whether learners can retake. Decide if this is formative or a gate.');
+  if(d.successMeasures.includes('Behavior change')||incidentDriver)i.push('Behavior change: identify what observable behavior looks like and who will measure it and when.');
+  if(d.successMeasures.includes('Manager observation'))i.push('Manager observation: requires a rubric or guide so observations are consistent and usable as data.');
+  if(d.successMeasures.includes('Fewer errors'))i.push('Error reduction: baseline current error rates now so post-launch results can be compared.');
+  if(d.successMeasures.includes('Audit readiness'))i.push('Audit readiness: define what evidence will be required and how it will be stored and retrieved.');
+  if(d.successMeasures.includes('Confidence'))i.push('Confidence: use a pre and post self-assessment to capture shifts. Keep it short and tied to specific tasks or decisions.');
+  if(!i.length)i.push('Review selected measures with stakeholders at kickoff and ensure each one has an owner and a way to collect data.');
+  return'<ul>'+i.map(x=>'<li>'+x+'</li>').join('')+'</ul>';
+}
+function buildR2Kickoff(d,rec,nothing,tightTimeline){
+  const p=['Open by restating the business problem in plain terms — not the content request — to confirm shared understanding.','Introduce the recommended approach ('+rec+') and explain why before asking for feedback.','Name the scope factors that will affect timeline and cost.'];
+  if(tightTimeline)p.push('Address the timeline directly. Ask the group to align on what the minimum viable version looks like if the full scope cannot fit.');
+  if(d.driver==='Incident or repeated issue')p.push('Raise the root cause question directly. Be honest that learning alone may not fix it.');
+  if(d.deliveryFormats.includes('Live facilitated session (virtual or in person)')||d.deliveryFormats.includes('Blended (self-paced plus live session)'))p.push('Confirm facilitator ownership and session logistics early — who facilitates, how many cohorts, and whether a pilot run is planned.');
+  if(d.successMeasures.includes('Not yet defined'))p.push('Make success definition a required outcome of the first meeting, not a deferred item.');
+  p.push('Close with clear next steps, owners, and a decision on whether to proceed to design or scope further first.');
+  return'<ul>'+p.map(x=>'<li>'+x+'</li>').join('')+'</ul>';
+}
+
+/* =============================================
+   COPY
+   ============================================= */
+function copySection(id,btn){
+  const el=document.getElementById(id);
+  navigator.clipboard.writeText(el.innerText||el.textContent).then(()=>{
+    btn.textContent='✓ Copied';btn.classList.add('copied');
+    setTimeout(()=>{btn.textContent='⎘ Copy';btn.classList.remove('copied');},2000);
+  });
+}
+
+/* =============================================
+   PRINT — renders inside artifact overlay
+   ============================================= */
+function openPrint(which){
+  const isReq=which==='requester';
+  const rec=document.getElementById(isReq?'r1-rec':'r2-rec').textContent;
+  const sectionsHTML=document.getElementById(isReq?'r1-sections':'r2-sections').innerHTML;
+  const title=isReq?'Requester Summary':'Learning Team Diagnostic';
+  const recLabel=isReq?'Recommended Approach':'Solution Path';
+  const subtitle=isReq?'A plain-language read of where this request stands and what comes next.':'A deeper read for the learning team — covering rationale, risks, and first meeting prep.';
+  const date=new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
+  const meta=`${intake.description?'Request: '+intake.description+' &nbsp;|&nbsp; ':''}Timeline: ${intake.timeline} &nbsp;|&nbsp; Audience: ${intake.audience.join(', ')} (~${intake.learnerCount})`;
+  let printSections=sectionsHTML
+    .replace(/<button class="copy-btn"[^>]*>.*?<\/button>/g,'')
+    .replace(/class="tag tag-risk"/g,'class="po-tag po-tag-risk"')
+    .replace(/class="tag tag-warn"/g,'class="po-tag po-tag-warn"')
+    .replace(/class="tag tag-ok"/g,'class="po-tag po-tag-ok"')
+    .replace(/class="tag tag-info"/g,'class="po-tag po-tag-info"')
+    .replace(/class="tags"/g,'class="po-tags"')
+    .replace(/class="report-section"/g,'class="po-section"')
+    .replace(/class="section-header"/g,'class="po-section-header"')
+    .replace(/class="section-body"/g,'class="po-section-body"');
+  document.getElementById('poInner').innerHTML=`
+    <div class="po-report">
+      <div class="po-topbar">
+        <div class="po-brand">Learning Intake Analyzer</div>
+        <div class="po-credit">Built by Nikki Rosenvald &nbsp;|&nbsp; nikkirosenvald.com &nbsp;|&nbsp; ${date}</div>
+      </div>
+      <div style="margin-bottom:4px;font-size:16px;font-weight:800;color:#111">${title}</div>
+      <div class="po-subtitle">${subtitle}</div>
+      <div class="po-meta">${meta}</div>
+      <div class="po-rec"><div class="po-rec-label">${recLabel}</div><div class="po-rec-type">${rec}</div></div>
+      ${printSections}
+      <div class="po-footer">Built by Nikki Rosenvald &nbsp;·&nbsp; nikkirosenvald.com &nbsp;·&nbsp; Learning Program Manager &amp; Instructional Designer</div>
+    </div>`;
+  document.getElementById('printOverlay').classList.add('visible');
+  setTimeout(()=>window.print(),300);
+}
+function closePrint(){document.getElementById('printOverlay').classList.remove('visible');}
+
+/* =============================================
+   TABS
+   ============================================= */
+function switchTab(tab){
+  document.querySelectorAll('.tab-btn').forEach((b,i)=>{b.classList.toggle('active',(i===0&&tab==='requester')||(i===1&&tab==='diagnostic'));});
+  document.getElementById('panel-requester').classList.toggle('active',tab==='requester');
+  document.getElementById('panel-diagnostic').classList.toggle('active',tab==='diagnostic');
+}
+
+/* =============================================
+   RESET
+   ============================================= */
+function resetTool(){
+  document.querySelectorAll('.option-btn').forEach(b=>b.classList.remove('selected'));
+  document.querySelectorAll('.toggle-btn').forEach(b=>b.classList.remove('selected'));
+  document.querySelectorAll('textarea,input[type=text]').forEach(i=>i.value='');
+  document.getElementById('langRow').classList.add('hidden');
+  document.querySelectorAll('.val-msg').forEach(m=>m.classList.remove('show'));
+  intake={description:'',timeline:'',audience:[],learnerCount:'',driver:'',outcome:'',existingAssets:[],successMeasures:[],meetingAttendees:[],deliveryFormats:[],media:[],localization:'',languages:'',accessibility:''};
+  currentStep=1;
+  document.querySelectorAll('.card').forEach(c=>{c.style.display='';c.classList.remove('active');});
+  document.getElementById('q1').classList.add('active');
+  document.getElementById('progressWrap').style.display='';
+  document.getElementById('navRow').style.display='';
+  document.getElementById('mainHeader').style.display='';
+  document.getElementById('reports').style.display='none';
+  updateProgress();updateNav();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+</script>
+</body>
+</html>
